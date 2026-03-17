@@ -18,31 +18,40 @@ TIMESTAMP=$(date '+%Y-%m-%d %H:%M:%S')
 
 echo "" >> "$LOG_FILE"
 echo "=== Run: $TIMESTAMP ===" >> "$LOG_FILE"
-{{if .Worktree}}
+{{- if .Worktree}}
+
+mkdir -p "$HOME/.claude-scheduler/worktrees"
 WORK_DIR=$(mktemp -d "$HOME/.claude-scheduler/worktrees/XXXXXX")
 BRANCH="claude-task/{{.ID}}-$(date +%s)"
-git worktree add -b "$BRANCH" "$WORK_DIR" HEAD 2>>"$LOG_FILE"
+if ! git worktree add -b "$BRANCH" "$WORK_DIR" HEAD 2>>"$LOG_FILE"; then
+  echo "=== Exit: failed to create worktree ===" >> "$LOG_FILE"
+  exit 1
+fi
 cd "$WORK_DIR"
 
 cleanup_worktree() {
   git worktree remove --force "$WORK_DIR" 2>/dev/null || true
 }
 trap cleanup_worktree EXIT
-{{end}}
-{{.ClaudeCmd}} {{.QuotedPrompt}} >> "$LOG_FILE" 2>&1
+{{- end}}
+
+"{{.ClaudeBin}}"{{.ClaudeFlags}} -p {{.QuotedPrompt}} >> "$LOG_FILE" 2>&1
 EXIT_CODE=$?
-{{if .Worktree}}
+{{- if .Worktree}}
+
 if [[ $EXIT_CODE -eq 0 ]] && ! git diff --quiet HEAD 2>/dev/null; then
   git add -A && git commit -m "claude-scheduler: automated changes" && git push origin HEAD 2>>"$LOG_FILE"
 fi
-{{end}}
+{{- end}}
+
 echo "=== Exit: $EXIT_CODE ===" >> "$LOG_FILE"
 `))
 
 type scriptData struct {
 	ID           string
 	LogPath      string
-	ClaudeCmd    string
+	ClaudeBin    string
+	ClaudeFlags  string
 	QuotedPrompt string
 	Worktree     bool
 }
@@ -51,16 +60,17 @@ type scriptData struct {
 func WriteScript(t *task.Task) (string, error) {
 	claudeBin := findClaude()
 
-	claudeCmd := claudeBin + " -p"
+	var flags string
 	if t.Autonomous {
-		claudeCmd += " --dangerously-skip-permissions"
+		flags = " --dangerously-skip-permissions"
 	}
 
 	var buf bytes.Buffer
 	err := scriptTmpl.Execute(&buf, scriptData{
 		ID:           t.ID,
 		LogPath:      task.LogPath(t.ID),
-		ClaudeCmd:    claudeCmd,
+		ClaudeBin:    claudeBin,
+		ClaudeFlags:  flags,
 		QuotedPrompt: fmt.Sprintf("%q", t.Prompt),
 		Worktree:     t.Worktree,
 	})

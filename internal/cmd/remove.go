@@ -12,7 +12,14 @@ func Remove(args []string) error {
 		return fmt.Errorf("usage: remove <id>")
 	}
 	id := args[0]
-	platform.NewScheduler().Uninstall(id)
+
+	if _, err := task.Load(id); err != nil {
+		return fmt.Errorf("task '%s' not found", id)
+	}
+
+	if err := platform.NewScheduler().Uninstall(id); err != nil {
+		return fmt.Errorf("uninstalling from scheduler: %w", err)
+	}
 	task.Delete(id)
 	fmt.Printf("Removed task '%s'\n", id)
 	return nil

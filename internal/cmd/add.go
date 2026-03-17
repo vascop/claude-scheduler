@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -11,12 +12,18 @@ import (
 	"github.com/vascop/claude-scheduler/internal/task"
 )
 
+var validID = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_-]*$`)
+
 func Add(args []string) error {
 	if len(args) < 3 {
 		return fmt.Errorf("usage: add <id> <cron> <prompt> [--autonomous] [--worktree]")
 	}
 
 	id := args[0]
+	if !validID.MatchString(id) {
+		return fmt.Errorf("invalid task ID %q: must be alphanumeric with hyphens/underscores", id)
+	}
+
 	cronExpr := args[1]
 
 	var promptParts []string
@@ -42,6 +49,11 @@ func Add(args []string) error {
 	schedule, err := cron.Parse(cronExpr)
 	if err != nil {
 		return fmt.Errorf("invalid cron expression %q: %w", cronExpr, err)
+	}
+
+	// Check for existing task
+	if existing, err := task.Load(id); err == nil {
+		return fmt.Errorf("task '%s' already exists (cron: %s, prompt: %s). Remove it first or use a different ID", existing.ID, existing.Cron, existing.Prompt)
 	}
 
 	t := &task.Task{

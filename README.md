@@ -77,31 +77,3 @@ A companion skill at `~/.claude/skills/scheduler/` lets you manage tasks with na
 /scheduler list
 /scheduler remove sync-repos
 ```
-
-## Project structure
-
-```
-main.go                         Entry point + subcommand dispatch
-internal/
-  task/
-    task.go                     Task model
-    store.go                    JSON persistence (load/save/delete/list)
-  cron/
-    cron.go                     5-field cron parsing + field expansion
-    cron_test.go                Tests
-  platform/
-    platform.go                 Scheduler interface
-    launchd.go                  macOS backend (build tag: darwin)
-    crontab.go                  Linux backend (build tag: linux)
-    crontab_logic.go            Crontab text manipulation (cross-platform, testable)
-    crontab_logic_test.go       Tests for crontab logic
-  runner/
-    script.go                   Runner shell script generation
-  cmd/
-    add.go                      add subcommand
-    remove.go                   remove subcommand
-    list.go                     list subcommand
-    logs.go                     logs subcommand
-    run.go                      run subcommand
-    status.go                   status subcommand
-```

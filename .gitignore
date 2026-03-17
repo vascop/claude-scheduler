@@ -1,0 +1,3 @@
+/bin/claude-scheduler
+*.log
+.DS_Store

@@ -57,8 +57,11 @@ func (l *Launchd) Install(id string, cronExpr string, schedule *cron.Schedule, s
 
 func (l *Launchd) Uninstall(id string) error {
 	path := l.plistPath(id)
+	// Unload from launchd (ignore error — may not be loaded)
 	exec.Command("launchctl", "unload", path).Run()
-	os.Remove(path)
+	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+		return err
+	}
 	return nil
 }
 
